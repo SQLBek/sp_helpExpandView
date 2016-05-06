@@ -30,6 +30,12 @@ GO
 -- 2015-03-30	AYun		V2.2: New Output - List all objects referenced & count
 -- 2015-05-20	AYun		V2.3: Corrected CURSOR & Database Name with space issue. 
 --							Thanks Mickey Stuewe!
+-- 2016-05-05	AYun		V2.4: Corrected TINYINT overflow
+--							Thanks Erin Stellato!
+--
+--							Added Child_DBName to output for @ShowObjectCount = 1, 
+--							aiding in multi-database view scenarios.
+--							Thanks Mickey Stuewe!
 ---------------------------------------------------------------------------------
 -- License: 
 -- This code is free to use for personal, educational, and internal corporate 
@@ -52,7 +58,7 @@ BEGIN TRY
 
 	DECLARE @BaseObject_DBName NVARCHAR(256),
 		@ChildObjectsFound SMALLINT = 1,
-		@HierarchyLevelToSearch TINYINT = 1,
+		@HierarchyLevelToSearch SMALLINT = 1,
 		@MinObjectHierarchyID INT = 0,
 		@TmpObjectHierarchyID INT = NULL,
 		@MaxObjectHierarchyID INT = 1,
@@ -82,7 +88,7 @@ BEGIN TRY
 	-- Create final output table containing full object hierarchy
 	CREATE TABLE #tmpObjectHierarchy (
 		ObjectHierarchyID INT IDENTITY(1, 1) PRIMARY KEY CLUSTERED,
-		HierarchyLvl TINYINT,
+		HierarchyLvl SMALLINT,
 
 		BaseObject_DBName NVARCHAR(512),
 		BaseObject_FullName NVARCHAR(512),
@@ -407,12 +413,15 @@ BEGIN TRY
 					THEN 'Synonym'
 				ELSE #tmpObjectHierarchy.Child_Type  
 			END AS ObjectType,
-			#tmpObjectHierarchy.Child_FullName AS Object_FullName, 
-			COUNT(1) AS ReferencedCount
+			#tmpObjectHierarchy.Child_DBName,
+			#tmpObjectHierarchy.Child_FullName AS Object_FullName,
+			COUNT(1) AS ReferencedObjectCount
 		FROM #tmpObjectHierarchy
 		GROUP BY #tmpObjectHierarchy.Child_Type, 
+			#tmpObjectHierarchy.Child_DBName,
 			#tmpObjectHierarchy.Child_FullName
 		ORDER BY ObjectType, 
+			#tmpObjectHierarchy.Child_DBName,
 			#tmpObjectHierarchy.Child_FullName
 	END
 END TRY
